@@ -63,7 +63,7 @@ public class GraphBuilder {
 
         // Combine built-in tools with provided tools
         final var allTools = new ArrayList<>( selectedBuiltinTools );
-        //allTools.addAll( tools );
+        allTools.addAll( tools );
 
         // Create task tool using createTaskTool() if subagents are provided
         if ( subAgents!= null && !subAgents.isEmpty()) {
