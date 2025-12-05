@@ -87,10 +87,15 @@ public class SourceCodeSearchAgentController implements CommandLineRunner {
                 
                 Important:
                 - Always search for source files first before reading
+                - When searching, use keywords from the question (e.g., for "apmain.c의 역할은?" search for "apmain")
+                - The search_source_files tool returns full file paths - use these exact paths when reading files
+                - You can also use just the filename with read_source_file (e.g., "apmain.c") and it will search for it
                 - Read multiple files if needed to get complete context
                 - Base your answer on the actual code you read, not on assumptions
-                - If you cannot find relevant code, say so clearly
+                - If you cannot find relevant code, say so clearly in Korean
                 - Provide specific file paths and line numbers when referencing code
+                - DO NOT use write_todos tool - it is not available in this agent
+                - Always provide a final text answer to the user, not JSON or function calls
                 
                 Answer in Korean if the question is in Korean, otherwise answer in English.
                 """)

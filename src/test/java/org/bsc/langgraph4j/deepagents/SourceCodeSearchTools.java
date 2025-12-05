@@ -104,7 +104,23 @@ public class SourceCodeSearchTools {
                     DeepAgent.log.info("Reading source file: {}", input.filePath());
                     
                     try {
-                        Path filePath = Paths.get(input.filePath());
+                        Path filePath;
+                        
+                        // If input is just a filename, search for it in src_target
+                        if (!Paths.get(input.filePath()).isAbsolute() && 
+                            !input.filePath().contains("/") && !input.filePath().contains("\\")) {
+                            // It's just a filename, search for it
+                            Path srcPath = Paths.get(srcTarget);
+                            Path foundFile = findFileByName(srcPath, input.filePath());
+                            
+                            if (foundFile == null) {
+                                return "Error: File not found: " + input.filePath() + 
+                                       ". Please use search_source_files first to find the full path.";
+                            }
+                            filePath = foundFile;
+                        } else {
+                            filePath = Paths.get(input.filePath());
+                        }
                         
                         // Security check: ensure file is within src_target or doc_target
                         Path srcPath = Paths.get(srcTarget).toAbsolutePath().normalize();
@@ -182,26 +198,60 @@ public class SourceCodeSearchTools {
     }
 
     private boolean containsQuery(Path path, String query) {
+        String lowerQuery = query.toLowerCase();
+        String fileName = path.getFileName().toString().toLowerCase();
+        String fullPath = path.toString().toLowerCase();
+        
+        // First check if query matches filename exactly or partially
+        if (fileName.contains(lowerQuery) || fileName.equals(lowerQuery + ".c") || 
+            fileName.equals(lowerQuery + ".h") || fileName.equals(lowerQuery + ".cpp") ||
+            fileName.equals(lowerQuery + ".java")) {
+            return true;
+        }
+        
+        // Check if query is in full path
+        if (fullPath.contains(lowerQuery)) {
+            return true;
+        }
+        
         try {
             // Check if file is binary or text
             if (isBinaryFile(path)) {
-                // For binary files, only check filename
-                return path.toString().toLowerCase().contains(query.toLowerCase());
+                // For binary files, only check filename (already checked above)
+                return false;
             }
             
             // Try to read as text file with UTF-8 encoding
             String content = Files.readString(path, java.nio.charset.StandardCharsets.UTF_8);
-            String lowerQuery = query.toLowerCase();
             String lowerContent = content.toLowerCase();
-            return lowerContent.contains(lowerQuery) || 
-                   path.toString().toLowerCase().contains(lowerQuery);
+            return lowerContent.contains(lowerQuery);
         } catch (java.nio.charset.MalformedInputException e) {
-            // File is not valid UTF-8, try to check filename only
-            DeepAgent.log.debug("File is not valid UTF-8, checking filename only: {}", path);
-            return path.toString().toLowerCase().contains(query.toLowerCase());
+            // File is not valid UTF-8, filename already checked above
+            DeepAgent.log.debug("File is not valid UTF-8, filename already checked: {}", path);
+            return false;
         } catch (IOException e) {
             DeepAgent.log.debug("Error reading file for search: {}", path, e);
             return false;
+        }
+    }
+    
+    /**
+     * Find a file by name in the source directory
+     */
+    private Path findFileByName(Path searchDir, String fileName) {
+        try (Stream<Path> paths = Files.walk(searchDir)) {
+            return paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().equals(fileName) ||
+                                   path.getFileName().toString().equals(fileName + ".c") ||
+                                   path.getFileName().toString().equals(fileName + ".h") ||
+                                   path.getFileName().toString().equals(fileName + ".cpp") ||
+                                   path.getFileName().toString().equals(fileName + ".java"))
+                    .findFirst()
+                    .orElse(null);
+        } catch (IOException e) {
+            DeepAgent.log.error("Error searching for file: {}", fileName, e);
+            return null;
         }
     }
     
