@@ -33,3 +33,8 @@ weather:
 tavily:
   api-key: ${TAVILY_API_KEY:}
 
+# Source code search agent configuration
+source:
+  src_target: ${SRC_TARGET:src/main/java}
+  doc_target: ${DOC_TARGET:docs}
+

@@ -15,6 +15,7 @@ import java.util.Map;
  * Demonstrates the use of Spring Boot CLI to execute a task using an agent executor.
  */
 @Controller
+@org.springframework.context.annotation.Profile("deepagents")
 public class DeepagentsConsoleController implements CommandLineRunner {
     private static final org.slf4j.Logger log = DeepAgent.log;
 
