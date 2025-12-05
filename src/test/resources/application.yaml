@@ -12,7 +12,7 @@ spring:
 #     web-application-type: servlet
 
   ai:
-#    openai:
+    openai:
        base-url: https://api.novita.ai/openai
        api-key: sk_4gl2Op_cec21CRV2NEC0xImoXbhPTUQ6aY695T3HBHw
        chat:
