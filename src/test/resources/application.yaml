@@ -13,11 +13,11 @@ spring:
 
   ai:
     openai:
-       base-url: https://api.novita.ai/openai
-       api-key: sk_4gl2Op_cec21CRV2NEC0xImoXbhPTUQ6aY695T3HBHw
-       chat:
-         options:
-           model: google/gemma-3-27b-it
+      base-url: https://api.novita.ai/openai
+      api-key: sk_4gl2Op_cec21CRV2NEC0xImoXbhPTUQ6aY695T3HBHw
+      chat:
+        options:
+          model: google/gemma-3-27b-it
     # ollama:
     #   base-url: https://api.novita.ai/openai
     #   chat:

@@ -11,6 +11,7 @@ import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel;
 import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -32,14 +33,26 @@ public class ChatModelConfiguration {
 
     @Bean
     @Profile("openai")
-    public ChatModel openaiModel() {
+    public ChatModel openaiModel(
+            @Value("${spring.ai.openai.api-key:${OPENAI_API_KEY:}}") String apiKey,
+            @Value("${spring.ai.openai.chat.options.model:gpt-4o-mini}") String model,
+            @Value("${spring.ai.openai.base-url:#{null}}") String baseUrl) {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            throw new IllegalStateException(
+                "OpenAI API key is required when using 'openai' profile. " +
+                "Please set OPENAI_API_KEY environment variable or configure spring.ai.openai.api-key in application.yaml"
+            );
+        }
+        
+        var apiBuilder = OpenAiApi.builder().apiKey(apiKey);
+        if (baseUrl != null && !baseUrl.trim().isEmpty()) {
+            apiBuilder.baseUrl(baseUrl);
+        }
+        
         return OpenAiChatModel.builder()
-                .openAiApi(OpenAiApi.builder()
-                        //.baseUrl("https://api.openai.com")
-                        .apiKey(System.getenv("OPENAI_API_KEY"))
-                        .build())
+                .openAiApi(apiBuilder.build())
                 .defaultOptions(OpenAiChatOptions.builder()
-                        .model("gpt-4o-mini")
+                        .model(model)
                         .logprobs(false)
                         .temperature(0.1)
                         .build())
