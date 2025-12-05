@@ -17,11 +17,9 @@ spring:
       api-key: sk_4gl2Op_cec21CRV2NEC0xImoXbhPTUQ6aY695T3HBHw
       chat:
         options:
-          # Try models that typically support function calling:
-          # - qwen/qwen2.5-72b-instruct
-          # - qwen/qwen2.5-32b-instruct  
-          # - gpt-4o-mini (if available on Novita.ai)
-          model: qwen/qwen2.5-72b-instruct
+          # Llama 3.3 70B Instruct - supports tool calling but may not support standard function calling schema
+          # If this doesn't work, try Ollama profile with a local model
+          model: meta-llama/llama-3.3-70b-instruct
     # ollama:
     #   base-url: https://api.novita.ai/openai
     #   chat:
