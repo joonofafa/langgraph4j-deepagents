@@ -17,7 +17,11 @@ spring:
       api-key: sk_4gl2Op_cec21CRV2NEC0xImoXbhPTUQ6aY695T3HBHw
       chat:
         options:
-          model: qwen/qwen3-32b-fp8
+          # Try models that typically support function calling:
+          # - qwen/qwen2.5-72b-instruct
+          # - qwen/qwen2.5-32b-instruct  
+          # - gpt-4o-mini (if available on Novita.ai)
+          model: qwen/qwen2.5-72b-instruct
     # ollama:
     #   base-url: https://api.novita.ai/openai
     #   chat:
