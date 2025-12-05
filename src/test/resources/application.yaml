@@ -17,7 +17,7 @@ spring:
       api-key: sk_4gl2Op_cec21CRV2NEC0xImoXbhPTUQ6aY695T3HBHw
       chat:
         options:
-          model: google/gemma-3-27b-it
+          model: qwen/qwen3-32b-fp8
     # ollama:
     #   base-url: https://api.novita.ai/openai
     #   chat:
