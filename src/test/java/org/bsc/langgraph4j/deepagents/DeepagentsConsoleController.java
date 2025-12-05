@@ -11,9 +11,6 @@ import org.springframework.stereotype.Controller;
 
 import java.util.List;
 import java.util.Map;
-
-import static java.lang.String.format;
-
 /**
  * Demonstrates the use of Spring Boot CLI to execute a task using an agent executor.
  */
