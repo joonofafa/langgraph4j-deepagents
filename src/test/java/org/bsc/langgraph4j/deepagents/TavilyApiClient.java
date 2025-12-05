@@ -24,23 +24,32 @@ import java.util.List;
 
 /**
  * Client to interact with the Tavily API using Spring's RestClient.
+ * This bean is only created when TAVILY_API_KEY is configured (non-empty).
  */
 @Component
 public class TavilyApiClient {
 
     private final RestClient restClient;
+    private final String apiKey;
 
     /**
      * Constructs the TavilyApiClient with a RestClient builder.
      *
      * @param restClientBuilder the RestClient builder
      */
-    public TavilyApiClient(RestClient.Builder restClientBuilder, @Value("${TAVILY_API_KEY}") String tavilyApiKey) {
-        this.restClient = restClientBuilder
-                .baseUrl("https://api.tavily.com")
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + tavilyApiKey)
-                .build();
+    public TavilyApiClient(RestClient.Builder restClientBuilder, @Value("${tavily.api-key:${TAVILY_API_KEY:}}") String tavilyApiKey) {
+        this.apiKey = (tavilyApiKey != null && !tavilyApiKey.trim().isEmpty()) ? tavilyApiKey : null;
+        if (this.apiKey != null) {
+            this.restClient = restClientBuilder
+                    .baseUrl("https://api.tavily.com")
+                    .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + this.apiKey)
+                    .build();
+        } else {
+            // Create a dummy RestClient that will never be used
+            this.restClient = null;
+            DeepAgent.log.warn("TavilyApiClient created without API key. Internet search will not work.");
+        }
     }
 
     /**
@@ -54,6 +63,19 @@ public class TavilyApiClient {
         if (request.query() == null || request.query().isEmpty()) {
             throw new IllegalArgumentException("Query parameter is required.");
         }
+        
+        if (restClient == null || apiKey == null) {
+            DeepAgent.log.warn("TavilyApiClient is not configured with API key. Returning empty results.");
+            return new TavilyResponse(
+                    request.query(),
+                    Collections.emptyList(),
+                    null,
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    0.0f
+            );
+        }
+        
         DeepAgent.log.info("Received TavilyRequest: {}", request);
 
         // Build the request payload with all parameters, setting defaults where necessary
