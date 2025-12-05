@@ -49,7 +49,7 @@ public class SourceCodeSearchTools {
 
         return FunctionToolCallback.<SearchSourceArgs, List<String>>builder(
                 "search_source_files", (input, context) -> {
-                    DeepAgent.log.info("Searching source files for: {}", input.query());
+                    DeepAgent.log.info("Searching source files for: {} in directory: {}", input.query(), srcTarget);
                     
                     List<String> results = new ArrayList<>();
                     Path srcPath = Paths.get(srcTarget);
@@ -59,20 +59,81 @@ public class SourceCodeSearchTools {
                         return List.of("Error: Source directory not found: " + srcTarget);
                     }
 
+                    // Normalize query - remove extension if present for better matching
+                    String normalizedQuery = input.query().toLowerCase().trim();
+                    final String queryWithoutExt;
+                    if (normalizedQuery.endsWith(".c") || normalizedQuery.endsWith(".h") || 
+                        normalizedQuery.endsWith(".cpp") || normalizedQuery.endsWith(".java")) {
+                        int lastDot = normalizedQuery.lastIndexOf('.');
+                        if (lastDot > 0) {
+                            queryWithoutExt = normalizedQuery.substring(0, lastDot);
+                        } else {
+                            queryWithoutExt = normalizedQuery;
+                        }
+                    } else {
+                        queryWithoutExt = normalizedQuery;
+                    }
+
                     try (Stream<Path> paths = Files.walk(srcPath)) {
-                        results = paths
+                        // First, try exact filename match
+                        List<Path> exactMatches = paths
                                 .filter(Files::isRegularFile)
                                 .filter(path -> isSourceFile(path))
-                                .filter(path -> containsQuery(path, input.query()))
+                                .filter(path -> {
+                                    String fileName = path.getFileName().toString().toLowerCase();
+                                    return fileName.equals(normalizedQuery) || 
+                                           fileName.startsWith(queryWithoutExt + ".");
+                                })
                                 .limit(input.maxResults())
-                                .map(path -> path.toString())
                                 .collect(Collectors.toList());
+                        
+                        if (!exactMatches.isEmpty()) {
+                            results = exactMatches.stream()
+                                    .map(path -> path.toString())
+                                    .collect(Collectors.toList());
+                            DeepAgent.log.info("Found {} exact filename matches", results.size());
+                            return results;
+                        }
+                        
+                        // If no exact match, try content search
+                        try (Stream<Path> paths2 = Files.walk(srcPath)) {
+                            results = paths2
+                                    .filter(Files::isRegularFile)
+                                    .filter(path -> isSourceFile(path))
+                                    .filter(path -> containsQuery(path, input.query()))
+                                    .limit(input.maxResults())
+                                    .map(path -> path.toString())
+                                    .collect(Collectors.toList());
+                        }
                     } catch (IOException e) {
                         DeepAgent.log.error("Error searching source files", e);
                         return List.of("Error: " + e.getMessage());
                     }
 
-                    DeepAgent.log.info("Found {} source files matching query", results.size());
+                    DeepAgent.log.info("Found {} source files matching query '{}'", results.size(), input.query());
+                    if (results.isEmpty()) {
+                        DeepAgent.log.warn("No files found for query '{}'. Searched in: {}", input.query(), srcTarget);
+                        // Try to find similar filenames
+                        try (Stream<Path> paths = Files.walk(srcPath)) {
+                            List<String> similarFiles = paths
+                                    .filter(Files::isRegularFile)
+                                    .filter(path -> isSourceFile(path))
+                                    .map(path -> path.getFileName().toString())
+                                    .filter(name -> name.toLowerCase().contains(queryWithoutExt.substring(0, Math.min(3, queryWithoutExt.length()))))
+                                    .limit(5)
+                                    .collect(Collectors.toList());
+                            
+                            if (!similarFiles.isEmpty()) {
+                                String suggestion = "No exact match found. Similar files: " + String.join(", ", similarFiles);
+                                DeepAgent.log.info(suggestion);
+                                return List.of("No files found matching '" + input.query() + "'. " + suggestion + 
+                                             ". Please check if the file exists in: " + srcTarget);
+                            }
+                        } catch (IOException e) {
+                            DeepAgent.log.debug("Error finding similar files", e);
+                        }
+                        return List.of("No files found matching '" + input.query() + "' in directory: " + srcTarget);
+                    }
                     return results;
                 })
                 .inputSchema(JsonSchemaGenerator.generateForType(typeRef.getType()))
@@ -198,19 +259,37 @@ public class SourceCodeSearchTools {
     }
 
     private boolean containsQuery(Path path, String query) {
-        String lowerQuery = query.toLowerCase();
+        String lowerQuery = query.toLowerCase().trim();
         String fileName = path.getFileName().toString().toLowerCase();
         String fullPath = path.toString().toLowerCase();
         
+        // Remove extension from query for better matching
+        String queryWithoutExt = lowerQuery;
+        if (lowerQuery.endsWith(".c") || lowerQuery.endsWith(".h") || 
+            lowerQuery.endsWith(".cpp") || lowerQuery.endsWith(".java")) {
+            int lastDot = lowerQuery.lastIndexOf('.');
+            if (lastDot > 0) {
+                queryWithoutExt = lowerQuery.substring(0, lastDot);
+            }
+        }
+        
+        // Remove extension from filename for comparison
+        String fileNameWithoutExt = fileName;
+        int lastDot = fileName.lastIndexOf('.');
+        if (lastDot > 0) {
+            fileNameWithoutExt = fileName.substring(0, lastDot);
+        }
+        
         // First check if query matches filename exactly or partially
-        if (fileName.contains(lowerQuery) || fileName.equals(lowerQuery + ".c") || 
-            fileName.equals(lowerQuery + ".h") || fileName.equals(lowerQuery + ".cpp") ||
-            fileName.equals(lowerQuery + ".java")) {
+        if (fileName.equals(lowerQuery) || 
+            fileNameWithoutExt.equals(queryWithoutExt) ||
+            fileName.contains(queryWithoutExt) ||
+            fileNameWithoutExt.contains(queryWithoutExt)) {
             return true;
         }
         
         // Check if query is in full path
-        if (fullPath.contains(lowerQuery)) {
+        if (fullPath.contains(lowerQuery) || fullPath.contains(queryWithoutExt)) {
             return true;
         }
         
@@ -224,7 +303,7 @@ public class SourceCodeSearchTools {
             // Try to read as text file with UTF-8 encoding
             String content = Files.readString(path, java.nio.charset.StandardCharsets.UTF_8);
             String lowerContent = content.toLowerCase();
-            return lowerContent.contains(lowerQuery);
+            return lowerContent.contains(lowerQuery) || lowerContent.contains(queryWithoutExt);
         } catch (java.nio.charset.MalformedInputException e) {
             // File is not valid UTF-8, filename already checked above
             DeepAgent.log.debug("File is not valid UTF-8, filename already checked: {}", path);
