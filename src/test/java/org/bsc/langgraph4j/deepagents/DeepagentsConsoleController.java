@@ -44,6 +44,10 @@ public class DeepagentsConsoleController implements CommandLineRunner {
         log.info("Welcome to the Spring Boot CLI application!");
 
         var console = System.console();
+        if (console == null) {
+            // If console is not available (e.g., when running from IDE or Maven), use System.out
+            log.warn("System.console() is not available. Using System.out instead.");
+        }
 
         // runDeepagents( console  );
         //runDeepagentsWithSubAgent( console );
@@ -211,39 +215,76 @@ public class DeepagentsConsoleController implements CommandLineRunner {
                 .reduce((a, b) -> b)
                 .orElseThrow();
 
-        console.format( """
+        // Use console if available, otherwise use System.out
+        if (console != null) {
+            console.format("""
         ================================
         TODO
         ================================
         """);
-        output.state().todos().forEach((value) -> console.format("""
-                -----------
-                %s
-                -----------
-                """, value));
+            output.state().todos().forEach((value) -> console.format("""
+                    -----------
+                    %s
+                    -----------
+                    """, value));
 
-        console.format( """
+            console.format("""
         ================================
         FILES
         ================================
         """);
-        output.state().files().forEach((key, value) -> console.format("""
-                file: '%s'
-                -----------
-                %s
-                -----------
-                """, key, value));
+            output.state().files().forEach((key, value) -> console.format("""
+                    file: '%s'
+                    -----------
+                    %s
+                    -----------
+                    """, key, value));
 
-        console.format( """
+            console.format("""
         ================================
         FINAL RESULT
         ================================
         """);
-        console.format( "result: %s\n",
-                output.state().lastMessage()
-                        .map(AssistantMessage.class::cast)
-                        .map(AssistantMessage::getText)
-                        .orElseThrow());
+            console.format("result: %s\n",
+                    output.state().lastMessage()
+                            .map(AssistantMessage.class::cast)
+                            .map(AssistantMessage::getText)
+                            .orElseThrow());
+        } else {
+            System.out.println("""
+        ================================
+        TODO
+        ================================
+        """);
+            output.state().todos().forEach((value) -> System.out.printf("""
+                    -----------
+                    %s
+                    -----------
+                    """, value));
+
+            System.out.println("""
+        ================================
+        FILES
+        ================================
+        """);
+            output.state().files().forEach((key, value) -> System.out.printf("""
+                    file: '%s'
+                    -----------
+                    %s
+                    -----------
+                    """, key, value));
+
+            System.out.println("""
+        ================================
+        FINAL RESULT
+        ================================
+        """);
+            System.out.printf("result: %s\n",
+                    output.state().lastMessage()
+                            .map(AssistantMessage.class::cast)
+                            .map(AssistantMessage::getText)
+                            .orElseThrow());
+        }
 
     }
 
