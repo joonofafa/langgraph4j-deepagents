@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -24,8 +25,10 @@ import java.util.List;
 
 /**
  * Client to interact with the Tavily API using Spring's RestClient.
+ * This bean is only created when TAVILY_API_KEY is configured.
  */
 @Component
+@ConditionalOnExpression("'${tavily.api-key:${TAVILY_API_KEY:}}' != ''")
 public class TavilyApiClient {
 
     private final RestClient restClient;
@@ -35,7 +38,10 @@ public class TavilyApiClient {
      *
      * @param restClientBuilder the RestClient builder
      */
-    public TavilyApiClient(RestClient.Builder restClientBuilder, @Value("${TAVILY_API_KEY}") String tavilyApiKey) {
+    public TavilyApiClient(RestClient.Builder restClientBuilder, @Value("${tavily.api-key:${TAVILY_API_KEY:}}") String tavilyApiKey) {
+        if (tavilyApiKey == null || tavilyApiKey.trim().isEmpty()) {
+            throw new IllegalArgumentException("TAVILY_API_KEY must be set when TavilyApiClient is created. Please set it as an environment variable or in application.yaml");
+        }
         this.restClient = restClientBuilder
                 .baseUrl("https://api.tavily.com")
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)

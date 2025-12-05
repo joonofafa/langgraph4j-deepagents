@@ -9,16 +9,21 @@ import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.ai.util.json.schema.JsonSchemaGenerator;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
 public class ApplicationTools {
 
-    final TavilyApiClient tavilyApiClient;
+    final Optional<TavilyApiClient> tavilyApiClient;
 
-    public ApplicationTools(TavilyApiClient tavilyApiClient) {
+    public ApplicationTools(Optional<TavilyApiClient> tavilyApiClient) {
         this.tavilyApiClient = tavilyApiClient;
+        if (tavilyApiClient.isEmpty()) {
+            DeepAgent.log.warn("TavilyApiClient is not available. Internet search functionality will be disabled. Set TAVILY_API_KEY to enable it.");
+        }
     }
 
     record InternetSearchArg(
@@ -39,7 +44,12 @@ public class ApplicationTools {
 
         return FunctionToolCallback.<InternetSearchArg, List<TavilyApiClient.TavilyResponse.Result>>builder( "internet_search", (input, context ) -> {
 
-                var response = tavilyApiClient.search(TavilyApiClient.TavilyRequest.builder()
+                if (tavilyApiClient.isEmpty()) {
+                    DeepAgent.log.warn("Internet search is not available. TAVILY_API_KEY is not configured. Returning empty results.");
+                    return Collections.emptyList();
+                }
+
+                var response = tavilyApiClient.get().search(TavilyApiClient.TavilyRequest.builder()
                         .query( input.query() )
                         .topic( input.topic() )
                         .includeImages(false)
@@ -55,7 +65,7 @@ public class ApplicationTools {
                 return response.results();
             })
             .inputSchema(JsonSchemaGenerator.generateForType(typeRef.getType()))
-            .description("Run a web search")
+            .description("Run a web search (requires TAVILY_API_KEY to be configured)")
             .inputType(typeRef.getType())
             .build();
     }
