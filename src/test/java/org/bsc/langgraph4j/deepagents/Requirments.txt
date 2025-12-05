@@ -6,3 +6,6 @@
 
 - 사용자가 프롬프트로 뭔가를 질문하면, src_target에 소스 검색 후, 참고된 소스를 확인하여 LLM이 답변.
 이 내용은 langchain을 활용
+
+
+export SRC_TARGET=/home/joonohani/workDir/Cpp/mtiApplication_24032_OneVisit_Mandiri

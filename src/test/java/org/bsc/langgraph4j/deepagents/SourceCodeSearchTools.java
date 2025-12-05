@@ -119,7 +119,22 @@ public class SourceCodeSearchTools {
                             return "Error: File not found: " + input.filePath();
                         }
                         
-                        List<String> lines = Files.readAllLines(filePath);
+                        // Check if file is binary
+                        if (isBinaryFile(filePath)) {
+                            return "Error: File appears to be binary and cannot be read as text: " + input.filePath();
+                        }
+                        
+                        List<String> lines;
+                        try {
+                            lines = Files.readAllLines(filePath, java.nio.charset.StandardCharsets.UTF_8);
+                        } catch (java.nio.charset.MalformedInputException e) {
+                            // Try with different encodings
+                            try {
+                                lines = Files.readAllLines(filePath, java.nio.charset.StandardCharsets.ISO_8859_1);
+                            } catch (Exception e2) {
+                                return "Error: File encoding is not supported (not UTF-8 or ISO-8859-1): " + input.filePath();
+                            }
+                        }
                         
                         // Apply line range
                         int startIdx = Math.max(0, input.startLine() - 1);
@@ -168,14 +183,50 @@ public class SourceCodeSearchTools {
 
     private boolean containsQuery(Path path, String query) {
         try {
-            String content = Files.readString(path);
+            // Check if file is binary or text
+            if (isBinaryFile(path)) {
+                // For binary files, only check filename
+                return path.toString().toLowerCase().contains(query.toLowerCase());
+            }
+            
+            // Try to read as text file with UTF-8 encoding
+            String content = Files.readString(path, java.nio.charset.StandardCharsets.UTF_8);
             String lowerQuery = query.toLowerCase();
             String lowerContent = content.toLowerCase();
             return lowerContent.contains(lowerQuery) || 
                    path.toString().toLowerCase().contains(lowerQuery);
+        } catch (java.nio.charset.MalformedInputException e) {
+            // File is not valid UTF-8, try to check filename only
+            DeepAgent.log.debug("File is not valid UTF-8, checking filename only: {}", path);
+            return path.toString().toLowerCase().contains(query.toLowerCase());
         } catch (IOException e) {
             DeepAgent.log.debug("Error reading file for search: {}", path, e);
             return false;
+        }
+    }
+    
+    /**
+     * Check if a file is likely binary by examining first few bytes
+     */
+    private boolean isBinaryFile(Path path) {
+        try {
+            // Read first 512 bytes to check for null bytes or binary patterns
+            byte[] bytes = new byte[512];
+            try (var inputStream = Files.newInputStream(path)) {
+                int bytesRead = inputStream.read(bytes);
+                if (bytesRead > 0) {
+                    // Check for null bytes (common in binary files)
+                    for (int i = 0; i < bytesRead; i++) {
+                        if (bytes[i] == 0) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        } catch (IOException e) {
+            DeepAgent.log.debug("Error checking if file is binary: {}", path, e);
+            return false; // Assume text file if we can't determine
         }
     }
 }
