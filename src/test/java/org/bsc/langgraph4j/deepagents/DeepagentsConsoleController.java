@@ -212,76 +212,7 @@ public class DeepagentsConsoleController implements CommandLineRunner {
                 .reduce((a, b) -> b)
                 .orElseThrow();
 
-        // Use console if available, otherwise use System.out
-        if (console != null) {
-            console.format("""
-        ================================
-        TODO
-        ================================
-        """);
-            output.state().todos().forEach((value) -> console.format("""
-                    -----------
-                    %s
-                    -----------
-                    """, value));
-
-            console.format("""
-        ================================
-        FILES
-        ================================
-        """);
-            output.state().files().forEach((key, value) -> console.format("""
-                    file: '%s'
-                    -----------
-                    %s
-                    -----------
-                    """, key, value));
-
-            console.format("""
-        ================================
-        FINAL RESULT
-        ================================
-        """);
-            console.format("result: %s\n",
-                    output.state().lastMessage()
-                            .map(AssistantMessage.class::cast)
-                            .map(AssistantMessage::getText)
-                            .orElseThrow());
-        } else {
-            System.out.println("""
-        ================================
-        TODO
-        ================================
-        """);
-            output.state().todos().forEach((value) -> System.out.printf("""
-                    -----------
-                    %s
-                    -----------
-                    """, value));
-
-            System.out.println("""
-        ================================
-        FILES
-        ================================
-        """);
-            output.state().files().forEach((key, value) -> System.out.printf("""
-                    file: '%s'
-                    -----------
-                    %s
-                    -----------
-                    """, key, value));
-
-            System.out.println("""
-        ================================
-        FINAL RESULT
-        ================================
-        """);
-            System.out.printf("result: %s\n",
-                    output.state().lastMessage()
-                            .map(AssistantMessage.class::cast)
-                            .map(AssistantMessage::getText)
-                            .orElseThrow());
-        }
+        printResults(output, console);
 
     }
 
@@ -326,11 +257,7 @@ public class DeepagentsConsoleController implements CommandLineRunner {
                 .reduce((a, b) -> b)
                 .orElseThrow();
 
-        console.format( "result: %s\n",
-                output.state().lastMessage()
-                        .map(AssistantMessage.class::cast)
-                        .map(AssistantMessage::getText)
-                        .orElseThrow());
+        printResults(output, console);
 
     }
 
@@ -371,12 +298,92 @@ public class DeepagentsConsoleController implements CommandLineRunner {
                 .reduce((a, b) -> b)
                 .orElseThrow();
 
-        console.format( "result: %s\n",
-                output.state().lastMessage()
-                        //.map(AssistantMessage.class::cast)
-                        //.map(AssistantMessage::getText)
-                        .orElseThrow());
+        printResults(output, console);
 
+    }
+
+    /**
+     * Helper method to print agent results to console or System.out
+     */
+    @SuppressWarnings("unchecked")
+    private void printResults(Object outputObj, java.io.Console console) {
+        // Use reflection to access state() method since we don't know the exact type
+        try {
+            var stateMethod = outputObj.getClass().getMethod("state");
+            var state = (DeepAgent.State) stateMethod.invoke(outputObj);
+            if (console != null) {
+                console.format("""
+        ================================
+        TODO
+        ================================
+        """);
+                state.todos().forEach((value) -> console.format("""
+                        -----------
+                        %s
+                        -----------
+                        """, value));
+
+                console.format("""
+        ================================
+        FILES
+        ================================
+        """);
+                state.files().forEach((key, value) -> console.format("""
+                        file: '%s'
+                        -----------
+                        %s
+                        -----------
+                        """, key, value));
+
+                console.format("""
+        ================================
+        FINAL RESULT
+        ================================
+        """);
+                console.format("result: %s\n",
+                        state.lastMessage()
+                                .map(AssistantMessage.class::cast)
+                                .map(AssistantMessage::getText)
+                                .orElseThrow());
+            } else {
+                System.out.println("""
+        ================================
+        TODO
+        ================================
+        """);
+                state.todos().forEach((value) -> System.out.printf("""
+                        -----------
+                        %s
+                        -----------
+                        """, value));
+
+                System.out.println("""
+        ================================
+        FILES
+        ================================
+        """);
+                state.files().forEach((key, value) -> System.out.printf("""
+                        file: '%s'
+                        -----------
+                        %s
+                        -----------
+                        """, key, value));
+
+                System.out.println("""
+        ================================
+        FINAL RESULT
+        ================================
+        """);
+                System.out.printf("result: %s\n",
+                        state.lastMessage()
+                                .map(AssistantMessage.class::cast)
+                                .map(AssistantMessage::getText)
+                                .orElseThrow());
+            }
+        } catch (Exception e) {
+            log.error("Failed to print results", e);
+            throw new RuntimeException(e);
+        }
     }
 
 }
