@@ -115,26 +115,88 @@ public class SourceCodeSearchTools {
                     DeepAgent.log.info("Found {} source files matching query '{}'", results.size(), input.query());
                     if (results.isEmpty()) {
                         DeepAgent.log.warn("No files found for query '{}'. Searched in: {}", input.query(), srcTarget);
+                        
+                        // Build helpful error message with suggestions
+                        StringBuilder errorMsg = new StringBuilder();
+                        errorMsg.append("검색 결과가 없습니다: '").append(input.query()).append("'\n");
+                        errorMsg.append("검색 디렉토리: ").append(srcTarget).append("\n\n");
+                        
                         // Try to find similar filenames
                         try (Stream<Path> paths = Files.walk(srcPath)) {
                             List<String> similarFiles = paths
                                     .filter(Files::isRegularFile)
                                     .filter(path -> isSourceFile(path))
                                     .map(path -> path.getFileName().toString())
-                                    .filter(name -> name.toLowerCase().contains(queryWithoutExt.substring(0, Math.min(3, queryWithoutExt.length()))))
-                                    .limit(5)
+                                    .filter(name -> {
+                                        String lowerName = name.toLowerCase();
+                                        String lowerQuery = queryWithoutExt.toLowerCase();
+                                        return lowerName.contains(lowerQuery.substring(0, Math.min(3, lowerQuery.length()))) ||
+                                               lowerQuery.length() >= 3 && lowerName.contains(lowerQuery.substring(0, 3));
+                                    })
+                                    .limit(10)
                                     .collect(Collectors.toList());
                             
                             if (!similarFiles.isEmpty()) {
-                                String suggestion = "No exact match found. Similar files: " + String.join(", ", similarFiles);
-                                DeepAgent.log.info(suggestion);
-                                return List.of("No files found matching '" + input.query() + "'. " + suggestion + 
-                                             ". Please check if the file exists in: " + srcTarget);
+                                errorMsg.append("유사한 파일명:\n");
+                                similarFiles.forEach(file -> errorMsg.append("  - ").append(file).append("\n"));
+                                errorMsg.append("\n");
                             }
+                            
+                            // Get directory structure for context
+                            try (Stream<Path> dirPaths = Files.walk(srcPath, 3)) {
+                                List<String> topLevelDirs = dirPaths
+                                        .filter(Files::isDirectory)
+                                        .filter(path -> !path.equals(srcPath))
+                                        .map(path -> {
+                                            Path relPath = srcPath.relativize(path);
+                                            return relPath.toString().replace("\\", "/");
+                                        })
+                                        .filter(dir -> !dir.isEmpty() && dir.split("/").length <= 2)
+                                        .distinct()
+                                        .sorted()
+                                        .limit(15)
+                                        .collect(Collectors.toList());
+                                
+                                if (!topLevelDirs.isEmpty()) {
+                                    errorMsg.append("검색 디렉토리 구조 (일부):\n");
+                                    topLevelDirs.forEach(dir -> errorMsg.append("  - ").append(dir).append("/\n"));
+                                    errorMsg.append("\n");
+                                }
+                            }
+                            
+                            // Get sample file list
+                            try (Stream<Path> filePaths = Files.walk(srcPath, 2)) {
+                                List<String> sampleFiles = filePaths
+                                        .filter(Files::isRegularFile)
+                                        .filter(path -> isSourceFile(path))
+                                        .map(path -> {
+                                            Path relPath = srcPath.relativize(path);
+                                            return relPath.toString().replace("\\", "/");
+                                        })
+                                        .sorted()
+                                        .limit(20)
+                                        .collect(Collectors.toList());
+                                
+                                if (!sampleFiles.isEmpty()) {
+                                    errorMsg.append("사용 가능한 파일 예시 (처음 20개):\n");
+                                    sampleFiles.forEach(file -> errorMsg.append("  - ").append(file).append("\n"));
+                                    errorMsg.append("\n");
+                                }
+                            }
+                            
+                            errorMsg.append("제안:\n");
+                            errorMsg.append("1. 다른 검색어를 시도해보세요 (예: 관련 키워드, 파일명의 일부)\n");
+                            errorMsg.append("2. 검색 디렉토리가 올바른지 확인하세요: ").append(srcTarget).append("\n");
+                            errorMsg.append("3. 파일명이나 클래스명을 직접 검색해보세요\n");
+                            
+                            String finalMsg = errorMsg.toString();
+                            DeepAgent.log.info("No files found, providing suggestions to user");
+                            return List.of(finalMsg);
                         } catch (IOException e) {
                             DeepAgent.log.debug("Error finding similar files", e);
+                            return List.of("검색 결과가 없습니다: '" + input.query() + "'\n검색 디렉토리: " + srcTarget + 
+                                         "\n\n다른 검색어를 시도하거나, 검색 디렉토리를 확인해주세요.");
                         }
-                        return List.of("No files found matching '" + input.query() + "' in directory: " + srcTarget);
                     }
                     return results;
                 })

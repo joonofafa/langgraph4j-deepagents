@@ -112,7 +112,17 @@ public class SourceCodeSearchAgentController implements CommandLineRunner {
                 - You can also use just the filename with read_source_file (e.g., "apmain.c") and it will search for it
                 - Read multiple files if needed to get complete context
                 - Base your answer on the actual code you read, not on assumptions
-                - If you cannot find relevant code after multiple search attempts, say so clearly in Korean
+                - If search results are empty or show "검색 결과가 없습니다", the tool will provide helpful suggestions:
+                  * Similar file names
+                  * Directory structure
+                  * Sample available files
+                  * Search tips
+                - When no results are found after multiple attempts, provide a helpful response in Korean that:
+                  * Acknowledges that the search didn't find relevant code
+                  * Mentions the search terms you tried
+                  * Suggests alternative search terms or approaches
+                  * References the suggestions provided by the search tool (if any)
+                  * Asks the user for more specific information (file names, class names, etc.) if needed
                 - Provide specific file paths and line numbers when referencing code
                 - DO NOT use write_todos tool - it is not available in this agent
                 - Always provide a final text answer to the user, not JSON or function calls
