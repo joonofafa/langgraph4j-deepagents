@@ -1,7 +1,5 @@
 package org.bsc.langgraph4j.deepagents;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import org.bsc.langgraph4j.GraphInput;
 import org.bsc.langgraph4j.GraphStateException;
 import org.bsc.langgraph4j.RunnableConfig;
@@ -9,7 +7,6 @@ import org.bsc.langgraph4j.StateGraph;
 import org.bsc.langgraph4j.spring.ai.agent.ReactAgent;
 import org.bsc.langgraph4j.spring.ai.serializer.std.SpringAIStateSerializer;
 import org.bsc.langgraph4j.spring.ai.tool.SpringAIToolResponseBuilder;
-import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.tool.ToolCallback;
@@ -17,7 +14,6 @@ import org.springframework.ai.tool.function.FunctionToolCallback;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -110,8 +106,9 @@ class TaskToolBuilder {
 
             // final var state = new DeepAgent.State(context.getContext());
 
+            // input.description() is guaranteed to be non-null by TaskToolArgs constructor
             var inputState = mergeMap( context.getContext(),
-                    Map.of("messages", (Object)UserMessage.builder().text(input.description()).build()),
+                    Map.of("messages", (Object)UserMessage.builder().text(requireNonNull(input.description())).build()),
                     (v1, v2) -> v2);
 
             DeepAgent.log.debug( "tool: 'task' call: {}\n{}", input, inputState);
@@ -132,12 +129,12 @@ class TaskToolBuilder {
                                     .orElse( "Task completed"));
             }
             catch( Throwable ex ) {
-
+                // input.description() and input.subAgentType() are guaranteed to be non-null by TaskToolArgs constructor
                 return format("Error executing task '%s' with agent '%s': %s",
-                        input.description(), input.subAgentType(), ex.getMessage());
+                        requireNonNull(input.description()), requireNonNull(input.subAgentType()), ex.getMessage());
             }
         })
-        .inputSchema(format("""
+        .inputSchema(requireNonNull(format("""
                         {
                           "$schema" : "https://json-schema.org/draft/2020-12/schema",
                           "type" : "object",
@@ -154,7 +151,7 @@ class TaskToolBuilder {
                           "required" : [ "description", "subAgentType" ],
                           "additionalProperties" : false
                         }        
-                        """, subAgents.stream().map(DeepAgent.SubAgent::name).collect(Collectors.joining(", "))))
+                        """, subAgents.stream().map(DeepAgent.SubAgent::name).collect(Collectors.joining(", ")))))
         .inputType( TaskToolArgs.class )
         .description(Prompts.TASK_DESCRIPTION_PREFIX.replace(
                 "{other_agents}",

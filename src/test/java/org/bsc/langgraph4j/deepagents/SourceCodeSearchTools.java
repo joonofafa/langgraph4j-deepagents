@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Tools for searching and reading source code from the file system
  */
@@ -136,9 +138,11 @@ public class SourceCodeSearchTools {
                     }
                     return results;
                 })
-                .inputSchema(JsonSchemaGenerator.generateForType(typeRef.getType()))
-                .description("Search for source code files containing the query string in " + srcTarget)
-                .inputType(typeRef.getType())
+                .inputSchema(JsonSchemaGenerator.generateForType(requireNonNull(typeRef.getType())))
+                .description("Search for source code files by name or content in " + srcTarget + 
+                           ". If the search doesn't return relevant results, try different keywords or search terms. " +
+                           "You can call this tool multiple times with different queries to find the right files.")
+                .inputType(requireNonNull(typeRef.getType()))
                 .build();
     }
 
@@ -237,9 +241,9 @@ public class SourceCodeSearchTools {
                         return "Error reading file: " + e.getMessage();
                     }
                 })
-                .inputSchema(JsonSchemaGenerator.generateForType(typeRef.getType()))
+                .inputSchema(JsonSchemaGenerator.generateForType(requireNonNull(typeRef.getType())))
                 .description("Read content from a source file. Returns lines with line numbers.")
-                .inputType(typeRef.getType())
+                .inputType(requireNonNull(typeRef.getType()))
                 .build();
     }
 

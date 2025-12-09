@@ -8,6 +8,7 @@ import org.springframework.ai.util.json.schema.JsonSchemaGenerator;
 import java.util.List;
 import java.util.Map;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestTools {
@@ -17,13 +18,13 @@ public class TestTools {
     public void testJsonSchema() {
         var listTodoTypeRef = new TypeReference<List<DeepAgent.ToDo>>() {};
 
-        var listToDoSchema = JsonSchemaGenerator.generateForType(listTodoTypeRef.getType());
+        var listToDoSchema = JsonSchemaGenerator.generateForType(requireNonNull(listTodoTypeRef.getType()));
 
         assertNotNull( listToDoSchema, "listToDoSchema is null" );
 
         var taskToolTypeRef = new TypeReference<TaskToolBuilder.TaskToolArgs>() {};
 
-        var taskToolSchema = JsonSchemaGenerator.generateForType(taskToolTypeRef.getType());
+        var taskToolSchema = JsonSchemaGenerator.generateForType(requireNonNull(taskToolTypeRef.getType()));
 
         assertNotNull( taskToolSchema, "taskToolSchema is null" );
 

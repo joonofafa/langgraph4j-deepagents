@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 import static org.bsc.langgraph4j.deepagents.Prompts.EDIT_DESCRIPTION;
 
 interface Tools {
@@ -59,8 +60,8 @@ interface Tools {
                 throw new RuntimeException(e);
             }
         })
-        .inputSchema( JsonSchemaGenerator.generateForType(typeRef.getType()) )
-        .inputType(typeRef.getType())
+        .inputSchema( JsonSchemaGenerator.generateForType(requireNonNull(typeRef.getType())) )
+        .inputType(requireNonNull(typeRef.getType()))
         .description(Prompts.WRITE_TODOS_DESCRIPTION)
         .build();
 
@@ -133,9 +134,9 @@ interface Tools {
 
                     return String.join("\n", resultLines);
                 })
-                .inputSchema( JsonSchemaGenerator.generateForType(typeRef.getType()) )
+                .inputSchema( JsonSchemaGenerator.generateForType(requireNonNull(typeRef.getType())) )
                 .description(Prompts.TOOL_DESCRIPTION)
-                .inputType(typeRef.getType())
+                .inputType(requireNonNull(typeRef.getType()))
                 .build();
     }
 
@@ -155,9 +156,9 @@ interface Tools {
                             .update( Map.of( "files", Map.of( input.filePath(), input.content() )))
                             .buildAndReturn( format("Updated file %s", input.filePath()) );
         })
-        .inputSchema( JsonSchemaGenerator.generateForType(typeRef.getType()) )
+        .inputSchema( JsonSchemaGenerator.generateForType(requireNonNull(typeRef.getType())) )
         .description("Write content to a file in the mock filesystem")
-        .inputType(typeRef.getType())
+        .inputType(requireNonNull(typeRef.getType()))
         .build();
 
     }
@@ -228,8 +229,8 @@ interface Tools {
                             .update(Map.of("files", Map.of(input.filePath(), newContent)))
                             .buildAndReturn( format("`Updated file %s", input.filePath()) );
                 })
-                .inputSchema( JsonSchemaGenerator.generateForType(typeRef.getType()) )
-                .inputType(typeRef.getType())
+                .inputSchema( JsonSchemaGenerator.generateForType(requireNonNull(typeRef.getType())) )
+                .inputType(requireNonNull(typeRef.getType()))
                 .description(EDIT_DESCRIPTION)
                 .build();
     }

@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static java.util.Objects.requireNonNull;
+
 @Component
 public class ApplicationTools {
 
@@ -66,9 +68,9 @@ public class ApplicationTools {
 
                 return response.results();
             })
-            .inputSchema(JsonSchemaGenerator.generateForType(typeRef.getType()))
+            .inputSchema(JsonSchemaGenerator.generateForType(requireNonNull(typeRef.getType())))
             .description("Run a web search (requires TAVILY_API_KEY to be configured)")
-            .inputType(typeRef.getType())
+            .inputType(requireNonNull(typeRef.getType()))
             .build();
     }
 

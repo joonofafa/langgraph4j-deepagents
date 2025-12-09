@@ -11,6 +11,9 @@ import org.springframework.stereotype.Controller;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Test agent for searching source code and answering questions based on found code
@@ -82,8 +85,25 @@ public class SourceCodeSearchAgentController implements CommandLineRunner {
                 
                 When a user asks a question:
                 1. First, use the search_source_files tool to find relevant source files
-                2. Then, use the read_source_file tool to read the content of relevant files
-                3. Analyze the code and provide a detailed answer based on the actual source code
+                2. EVALUATE the search results:
+                   - If results are empty or contain error messages, try different search keywords
+                   - If results don't seem relevant to the question, try alternative search terms
+                   - If you find files but they don't contain the information you need, search with different keywords
+                3. Use the read_source_file tool to read the content of relevant files
+                4. EVALUATE the file content:
+                   - If the file doesn't contain the information you're looking for, search for other files
+                   - If you need more context, search for related files using different keywords
+                5. Analyze the code and provide a detailed answer based on the actual source code
+                
+                Search Strategy:
+                - Start with keywords directly from the question (e.g., for "refund 기능은?" search for "refund")
+                - If first search doesn't yield good results, try:
+                  * Synonyms or related terms (e.g., "refund" → "cancel", "void", "return")
+                  * More specific terms (e.g., "refund" → "refundTransaction", "processRefund")
+                  * More general terms (e.g., "refund" → "payment", "transaction")
+                  * File names mentioned in the question
+                - You can perform multiple searches with different keywords until you find relevant files
+                - Don't give up after the first search - be persistent and try different approaches
                 
                 Important:
                 - Always search for source files first before reading
@@ -92,7 +112,7 @@ public class SourceCodeSearchAgentController implements CommandLineRunner {
                 - You can also use just the filename with read_source_file (e.g., "apmain.c") and it will search for it
                 - Read multiple files if needed to get complete context
                 - Base your answer on the actual code you read, not on assumptions
-                - If you cannot find relevant code, say so clearly in Korean
+                - If you cannot find relevant code after multiple search attempts, say so clearly in Korean
                 - Provide specific file paths and line numbers when referencing code
                 - DO NOT use write_todos tool - it is not available in this agent
                 - Always provide a final text answer to the user, not JSON or function calls
@@ -109,17 +129,25 @@ public class SourceCodeSearchAgentController implements CommandLineRunner {
                         .recursionLimit(50)
                         .build());
 
-        Map<String, Object> input = Map.of("messages", new UserMessage(question));
+        Map<String, Object> input = Map.of("messages", new UserMessage(requireNonNull(question, "question cannot be null")));
         var runnableConfig = RunnableConfig.builder().build();
 
         System.out.println("\n[1/3] 소스 코드 검색 중...");
         var result = agent.stream(input, runnableConfig);
 
         System.out.println("[2/3] 관련 파일 분석 중...");
+        AtomicInteger stepCount = new AtomicInteger(0);
         var output = result.stream()
                 .peek(s -> {
                     if (s.node() != null) {
-                        System.out.println("  → " + s.node());
+                        int step = stepCount.incrementAndGet();
+                        String nodeName = s.node();
+                        System.out.println("  → [" + step + "] " + nodeName);
+                        
+                        // action 노드 표시 (도구 호출은 SourceCodeSearchTools에서 로깅됨)
+                        if ("action".equals(nodeName)) {
+                            System.out.println("      (도구 실행 중 - 자세한 내용은 위 로그 참조)");
+                        }
                     }
                 })
                 .reduce((a, b) -> b)

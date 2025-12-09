@@ -306,7 +306,6 @@ public class DeepagentsConsoleController implements CommandLineRunner {
     /**
      * Helper method to print agent results to console or System.out
      */
-    @SuppressWarnings("unchecked")
     private void printResults(Object outputObj, java.io.Console console) {
         // Use reflection to access state() method since we don't know the exact type
         try {
@@ -333,7 +332,7 @@ public class DeepagentsConsoleController implements CommandLineRunner {
                         file: '%s'
                         -----------
                         %s
-                        -----------
+                        -----------ㅇㅇ
                         """, key, value));
 
                 console.format("""
