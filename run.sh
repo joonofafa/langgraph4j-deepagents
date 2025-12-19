@@ -48,15 +48,28 @@ run_deepagents() {
 run_sourcesearch() {
     clear
     echo "================================================================"
-    echo "  Source Code Search Agent 실행 중..."
+    echo "  Source Code Search Agent"
     echo "================================================================"
     echo ""
-    echo "  SRC_TARGET 환경변수로 검색 대상 디렉토리를 지정할 수 있습니다."
-    echo "  현재 설정: ${SRC_TARGET:-미설정}"
-    echo "  (미설정 시 기본값: src/main/java)"
+    
+    # Check if SRC_TARGET is already set
+    if [ -z "$SRC_TARGET" ]; then
+        echo "  검색 대상 디렉토리를 입력하세요."
+        echo "  (Enter를 누르면 기본값 'src/main/java' 사용)"
+        echo ""
+        read -p "  경로: " input_path
+        
+        if [ -n "$input_path" ]; then
+            export SRC_TARGET="$input_path"
+        fi
+    fi
+    
+    echo ""
+    echo "  검색 대상: ${SRC_TARGET:-src/main/java}"
     echo ""
     echo "================================================================"
     echo ""
+    
     mvn test-compile exec:java \
         -Dexec.mainClass="org.bsc.langgraph4j.deepagents.SourceCodeSearchAgentApplication" \
         -Dexec.classpathScope=test
