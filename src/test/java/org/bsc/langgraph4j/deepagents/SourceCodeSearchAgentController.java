@@ -3,6 +3,8 @@ package org.bsc.langgraph4j.deepagents;
 import org.bsc.langgraph4j.CompileConfig;
 import org.bsc.langgraph4j.RunnableConfig;
 import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.boot.CommandLineRunner;
@@ -142,28 +144,87 @@ public class SourceCodeSearchAgentController implements CommandLineRunner {
         Map<String, Object> input = Map.of("messages", new UserMessage(requireNonNull(question, "question cannot be null")));
         var runnableConfig = RunnableConfig.builder().build();
 
-        System.out.println("\n[1/3] 소스 코드 검색 중...");
+        System.out.println("\n[에이전트 실행 시작]");
+        System.out.println("────────────────────────────────────────────────────────────────");
         var result = agent.stream(input, runnableConfig);
 
-        System.out.println("[2/3] 관련 파일 분석 중...");
         AtomicInteger stepCount = new AtomicInteger(0);
         var output = result.stream()
                 .peek(s -> {
                     if (s.node() != null) {
                         int step = stepCount.incrementAndGet();
                         String nodeName = s.node();
-                        System.out.println("  → [" + step + "] " + nodeName);
                         
-                        // action 노드 표시 (도구 호출은 SourceCodeSearchTools에서 로깅됨)
-                        if ("action".equals(nodeName)) {
-                            System.out.println("      (도구 실행 중 - 자세한 내용은 위 로그 참조)");
+                        // Get current state to show details
+                        var state = s.state();
+                        var messages = state.messages();
+                        
+                        if ("__START__".equals(nodeName)) {
+                            System.out.println("\n┌─ [" + step + "] 시작");
+                            System.out.println("│   사용자 질문 수신됨");
+                        } else if ("agent".equals(nodeName)) {
+                            System.out.println("\n┌─ [" + step + "] 🤖 에이전트 (LLM 추론)");
+                            
+                            // Show tool calls if any
+                            if (!messages.isEmpty()) {
+                                Message lastMsg = messages.get(messages.size() - 1);
+                                if (lastMsg instanceof AssistantMessage assistantMsg) {
+                                    var toolCalls = assistantMsg.getToolCalls();
+                                    if (toolCalls != null && !toolCalls.isEmpty()) {
+                                        System.out.println("│   📋 도구 호출 결정:");
+                                        for (var toolCall : toolCalls) {
+                                            System.out.println("│      → " + toolCall.name() + "()");
+                                            // Show abbreviated arguments
+                                            String args = toolCall.arguments();
+                                            if (args != null && args.length() > 100) {
+                                                args = args.substring(0, 100) + "...";
+                                            }
+                                            if (args != null && !args.isEmpty()) {
+                                                System.out.println("│         인자: " + args);
+                                            }
+                                        }
+                                    } else {
+                                        // No tool calls - LLM is generating final answer
+                                        String content = assistantMsg.getText();
+                                        if (content != null && !content.isEmpty()) {
+                                            System.out.println("│   💬 최종 답변 생성 중...");
+                                        }
+                                    }
+                                }
+                            }
+                        } else if ("action".equals(nodeName)) {
+                            System.out.println("│");
+                            System.out.println("├─ [" + step + "] ⚙️ 액션 (도구 실행)");
+                            
+                            // Show tool response summary
+                            if (!messages.isEmpty()) {
+                                Message lastMsg = messages.get(messages.size() - 1);
+                                if (lastMsg instanceof ToolResponseMessage toolResponse) {
+                                    var responses = toolResponse.getResponses();
+                                    for (var response : responses) {
+                                        System.out.println("│      ✓ " + response.name() + " 완료");
+                                        // Show abbreviated result
+                                        String result_text = response.responseData().toString();
+                                        if (result_text.length() > 150) {
+                                            result_text = result_text.substring(0, 150) + "...";
+                                        }
+                                        System.out.println("│        결과: " + result_text);
+                                    }
+                                }
+                            }
+                        } else if ("__END__".equals(nodeName)) {
+                            System.out.println("│");
+                            System.out.println("└─ [" + step + "] 완료");
+                        } else {
+                            System.out.println("\n┌─ [" + step + "] " + nodeName);
                         }
                     }
                 })
                 .reduce((a, b) -> b)
                 .orElseThrow();
 
-        System.out.println("[3/3] 답변 생성 완료\n");
+        System.out.println("\n────────────────────────────────────────────────────────────────");
+        System.out.println("[에이전트 실행 완료]\n");
         
         // Print results
         printResults(output);
